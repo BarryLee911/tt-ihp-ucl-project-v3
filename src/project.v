@@ -168,7 +168,8 @@ module tt_um_sine_area_detector #(
     wire send_peak;
     assign area_value = take_sample ? slide_sum_next : running_sum;
     assign area_latest = area_value[11] ? 11'd2047 : area_value[10:0];
-    assign send_peak = output_ready && !output_kind;
+    // Keep the output selector known during reset.
+    assign send_peak = rst_n && output_ready && !output_kind;
     assign peak_latest = take_sample ? peak_next : peak_first;
     /* One synchronous reset; each section keeps its own enable conditions. */
     always @(posedge clk) begin

@@ -93,17 +93,15 @@ class Driver:
         self.ref.edge(reset, level, adc)
         await self.half
         self.cycles += 1
-        # Allow startup settling only on the first asserted reset edge.
-        # All later edges, including the remaining reset edges, reject X/Z.
+        # Reject X/Z and check all output pins from the first reset edge.
         r = self.ref
         expected = (r.data & 255, ((r.data >> 8) << 5) | r.kind,
                     0xe1 if r.ready else 0xe0)
-        if reset and self.cycles == 1:
-            assert int(d.uio_out.value) == expected[1]
-            assert int(d.uio_oe.value) == expected[2]
-            return
         actual = (int(d.uo_out.value), int(d.uio_out.value), int(d.uio_oe.value))
         assert actual == expected, (self.cycles, r.level, r.samples, actual, expected)
+        if self.cycles == 1:
+            assert reset, 'First edge must assert reset'
+            d._log.info('First reset edge passed: data=0, type=0, output-enable=0xe0')
         assert not (drive and actual[2] & 1), 'External driver overlaps DUT uio[0]'
         if r.ready:
             assert int(d.pad0.value) == r.kind
@@ -177,6 +175,7 @@ async def pin_interface_real_dividers(dut):
     (output / 'pin_checks.json').write_text(json.dumps({
         'status': 'PASS', 'clock_hz': 80000000, 'clock_period_ns': 12.5,
         'handoff_cycles': 80000, 'cycles': driver.cycles, 'levels': results,
+        'first_reset_edge': 'PASS; all output pins checked, no X/Z exception',
         'seconds': time.perf_counter() - started,
         'scope': 'Pin-only functional checks; physical timing is checked separately.'
     }, indent=2), encoding='utf-8')
