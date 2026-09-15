@@ -41,19 +41,10 @@ jobs:
           path: saved_gds/
       - name: Run the official IHP gate-level test
         uses: TinyTapeout/tt-gds-action/gl_test@ttihp26b
-      - name: Run RTL with the same corrected test
-        working-directory: test
-        run: |
-          make clean
-          make
-          test -f results.xml
-          ! grep failure results.xml
-      - name: Save RTL results and GDS provenance
+      - name: Save GDS provenance
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: validation-record
-          path: |
-            gate-provenance.json
-            test/results.xml
-            test/output/*
+          path: gate-provenance.json
+
