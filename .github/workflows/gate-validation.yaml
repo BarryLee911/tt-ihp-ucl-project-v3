@@ -1,0 +1,59 @@
+name: gate-validation
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  validate-existing-gds:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download the completed 6x2 build
+        uses: actions/download-artifact@v7
+        with:
+          name: tt_submission
+          run-id: 34918734985
+          github-token: ${{ github.token }}
+          path: saved_gds
+      - name: Verify unchanged implementation inputs
+        shell: python
+        run: |
+          import hashlib, json, pathlib, re
+          root = pathlib.Path('.')
+          saved = root / 'saved_gds'
+          expected = 'bc460671b0b6b726a52bd751c18001795a97d9371f3093511b5ba0346cfbf4cc'
+          for base in (root, saved):
+              assert hashlib.sha256((base / 'src/project.v').read_bytes()).hexdigest() == expected
+          assert (root / 'src/config.json').read_bytes() == (saved / 'src/config.json').read_bytes()
+          for field in ('tiles', 'clock_hz', 'top_module'):
+              values = [re.search(r'^\s*' + field + r':\s*(.+)$', (base / 'info.yaml').read_text(), re.M)[1] for base in (root, saved)]
+              assert values[0] == values[1], field
+          record = {'gds_commit': '2930d20b3f2fec83b1e36575c65a0630adbb25f6', 'gds_run': 34918734985,
+                    'rtl_sha256': expected, 'clock_period_ns': 12.5, 'tiles': '6x2'}
+          pathlib.Path('gate-provenance.json').write_text(json.dumps(record, indent=2))
+      - name: Make the verified GDS available to the official gate test
+        uses: actions/upload-artifact@v7
+        with:
+          name: tt_submission
+          path: saved_gds/
+      - name: Run the official IHP gate-level test
+        uses: TinyTapeout/tt-gds-action/gl_test@ttihp26b
+      - name: Run RTL with the same corrected test
+        working-directory: test
+        run: |
+          make clean
+          make
+          test -f results.xml
+          ! grep failure results.xml
+      - name: Save RTL results and GDS provenance
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: validation-record
+          path: |
+            gate-provenance.json
+            test/results.xml
+            test/output/*

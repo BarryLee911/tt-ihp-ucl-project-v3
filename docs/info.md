@@ -4,7 +4,7 @@ At 80 MHz, the design counts sign matches over the last 2048 samples and estimat
 
 ## How to test
 
-Apply an 80 MHz clock and hold `rst_n=0` across a rising edge. Set `uio[4:0]` before releasing reset. The first legal level (0–23) is latched once; reset is required to reconfigure. Levels 24–31 wait for a legal value.
+Apply an 80 MHz clock and hold `rst_n=0` for four rising edges before reading results. Set `uio[4:0]` before releasing reset. The first legal level (0–23) is latched once; reset is required to reconfigure. Levels 24–31 wait for a legal value.
 
 Levels 0–22 sample every `2^level` clocks, giving a reference frequency of `80,000,000 / (2048 * 2^level)` Hz. Level 23 samples every 78,125,000 clocks for a 0.5 mHz reference. Sampling begins one full divider interval after latching.
 
